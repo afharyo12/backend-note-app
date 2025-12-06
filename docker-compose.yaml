@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  # Your Backend Application
+  backend:
+    build: .
+    ports:
+      - "5000:5000"
+    depends_on:
+      - keycloak
+      - db
+    environment:
+      - DB_HOST=db
+      - DB_PORT=3306
+      # Update config to point to keycloak container internally if needed, 
+      # but for browser access 'localhost' works.
+
+  # Database for your App (if you don't have one running locally)
+  db:
+    image: "mysql:${MYSQL_VERSION:-8.0}"
+    environment:
+      MYSQL_DATABASE: db_invenotry
+    ports:
+      - "3307:3306"
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    depends_on:
+      - db
+    ports:
+      - "8081:80"
+
+  # Keycloak Service
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0.0
+    command: start-dev
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8080:8080"

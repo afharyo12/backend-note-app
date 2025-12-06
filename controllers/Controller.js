@@ -2,47 +2,99 @@ import User from "../models/UserModel.js";
 import Products from "../models/ProductModel.js";
 import bcrypt from "bcrypt"; // Add this import
 import jwt from "jsonwebtoken"; 
+import { keycloakConfig } from "../config/KeycloakConfig.js";
 
+// Helper to get Admin Token (needed to create users)
+const getAdminToken = async () => {
+    const data = qs.stringify({
+        client_id: "admin-cli",
+        username: keycloakConfig.adminUsername,
+        password: keycloakConfig.adminPassword,
+        grant_type: "password"
+    });
+
+    const response = await axios.post(
+        `${keycloakConfig.url}/realms/master/protocol/openid-connect/token`,
+        data,
+        { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+    );
+    return response.data.access_token;
+};
+
+// 1. REGISTER: Create a user in Keycloak
 const doRegister = async (req, res) => {
-    const { username, password } = req.body;
+    const { username, password, email } = req.body;
+
     try {
-      const hashedPassword = await bcrypt.hash(password, 10);
-      await Note.create({ username, password: hashedPassword });
-      res.status(201).json({ message: 'User registered successfully' });
+        const adminToken = await getAdminToken();
+
+        // Keycloak Admin API to create user
+        await axios.post(
+            `${keycloakConfig.url}/admin/realms/${keycloakConfig.realm}/users`,
+            {
+                username: username,
+                email: email,
+                enabled: true,
+                credentials: [{
+                    type: "password",
+                    value: password,
+                    temporary: false
+                }]
+            },
+            {
+                headers: {
+                    Authorization: `Bearer ${adminToken}`,
+                    "Content-Type": "application/json"
+                }
+            }
+        );
+
+        res.status(201).json({ message: 'User registered successfully in Keycloak' });
+
     } catch (error) {
-      res.status(500).json({ message: 'Error registering user', error });
+        // Handle case where user already exists
+        if (error.response && error.response.status === 409) {
+            return res.status(409).json({ message: 'User already exists' });
+        }
+        console.error("Register Error:", error.response ? error.response.data : error.message);
+        res.status(500).json({ message: 'Error registering user', error: error.message });
     }
 }
 
-
+// 2. LOGIN: Exchange username/password for a Token
 const doLogin = async (req, res) => {
-  const { username, password } = req.body;
-  try {
-    const user = await Note.findOne({ where: { username } });
-    
-    // First problem: check if user exists
-    if (!user) {
-      return res.status(401).json({ message: 'Invalid username or password' });
+    const { username, password } = req.body;
+
+    // Prepare data for Keycloak Token Endpoint
+    const data = qs.stringify({
+        client_id: keycloakConfig.clientId,
+        client_secret: keycloakConfig.clientSecret, // Only required if Access Type is 'Confidential'
+        username: username,
+        password: password,
+        grant_type: "password"
+    });
+
+    try {
+        const response = await axios.post(
+            `${keycloakConfig.url}/realms/${keycloakConfig.realm}/protocol/openid-connect/token`,
+            data,
+            { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+        );
+
+        // Return the token to the user
+        res.json({
+            message: 'Login successful',
+            token: response.data.access_token,
+            refreshToken: response.data.refresh_token
+        });
+
+    } catch (error) {
+        console.error("Login Error:", error.response ? error.response.data : error.message);
+        if (error.response && error.response.status === 401) {
+            return res.status(401).json({ message: 'Invalid username or password' });
+        }
+        res.status(500).json({ message: 'Error logging in' });
     }
-    
-    // Second problem: use user.password instead of Note.password
-    const passwordMatch = await bcrypt.compare(password, user.password);
-    if (!passwordMatch) {
-      return res.status(401).json({ message: 'Invalid username or password' });
-    }
-    
-    // Third problem: use user.id instead of Note.id and provide a fallback JWT_SECRET
-    const token = jwt.sign(
-      { id: user.id }, 
-      process.env.JWT_SECRET || 'fallback_secret_key_for_development',
-      { expiresIn: '1h' }
-    );
-    
-    res.json({ token, message: 'Login successful' });
-  } catch (error) {
-    console.error("Login error:", error);
-    res.status(500).json({ message: 'Error logging in', error: error.message });
-  }
 }
 
 const showUsernames = async (req, res) => {
