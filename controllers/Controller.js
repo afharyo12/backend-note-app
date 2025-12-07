@@ -3,6 +3,8 @@ import Products from "../models/ProductModel.js";
 import bcrypt from "bcrypt"; // Add this import
 import jwt from "jsonwebtoken"; 
 import { keycloakConfig } from "../config/KeycloakConfig.js";
+import axios from "axios";
+import qs from "qs";
 
 // Helper to get Admin Token (needed to create users)
 const getAdminToken = async () => {
@@ -23,6 +25,7 @@ const getAdminToken = async () => {
 
 // 1. REGISTER: Create a user in Keycloak
 const doRegister = async (req, res) => {
+    console.log("RECEIVED BODY:", req.body);
     const { username, password, email } = req.body;
 
     try {
