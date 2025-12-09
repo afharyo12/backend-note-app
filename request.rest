@@ -27,9 +27,9 @@ POST http://localhost:5000/add-product
 Content-Type: application/json
 
 {
-    "product_name"  : "Product C",
-    "description"   : "This is product C",
-    "qty"      : 13
+    "product_name"  : "",
+    "description"   : "This is product X",
+    "qty"      : 100
 }
 
 ###

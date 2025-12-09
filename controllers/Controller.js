@@ -5,6 +5,7 @@ import jwt from "jsonwebtoken";
 import { keycloakConfig } from "../config/KeycloakConfig.js";
 import axios from "axios";
 import qs from "qs";
+import logger from "../config/Logger.js";
 
 // Helper to get Admin Token (needed to create users)
 const getAdminToken = async () => {
@@ -83,7 +84,7 @@ const doLogin = async (req, res) => {
             data,
             { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
         );
-
+        logger.info(`User ${username} logged in successfully`); 
         // Return the token to the user
         res.json({
             message: 'Login successful',
@@ -92,7 +93,7 @@ const doLogin = async (req, res) => {
         });
 
     } catch (error) {
-        console.error("Login Error:", error.response ? error.response.data : error.message);
+        logger.error(`Login error for ${username}: ${error.message}`);
         if (error.response && error.response.status === 401) {
             return res.status(401).json({ message: 'Invalid username or password' });
         }
@@ -140,10 +141,10 @@ const addProduct = async (req, res) => {
       description,
       qty,
     });
-
+    logger.info(`Product created: ${product_name}`);
     res.status(201).json(newProduct);
   } catch (error) {
-    console.error(error);
+    logger.error(`Failed to add product: ${error.message}`);
     res.status(500).json({ message: "Failed to add product" });
   }
 };
@@ -180,7 +181,7 @@ const editProduct = async (req, res) => {
 const deleteProduct = async (req, res) => {
     try {
         const productId = req.params.id;
-        console.log("Deleting product ID:", productId);
+        logger.info(`Attempting to delete product ID: ${productId}`);
 
         const result = await Products.destroy({
             where: {
@@ -189,12 +190,14 @@ const deleteProduct = async (req, res) => {
         });
 
         if (result) {
+            logger.info(`Product ${productId} deleted successfully`);
             res.json({ message: "Product deleted successfully!" });
         } else {
+            logger.warn(`Delete failed: Product ${productId} not found`);
             res.status(404).json({ error: "Product not found!" });
         }
     } catch (error) {
-        console.error("Error deleting Product:", error);
+        logger.error(`Error deleting Product: ${error.message}`);
         res.status(500).json({ error: "Internal server error" });
     }
 };
