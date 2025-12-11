@@ -10,7 +10,7 @@ import {
     deleteProduct
 } from "../controllers/Controller.js";
 
-// Import the new middleware
+// Import the middleware
 import { verifyToken, requireRole } from "../middleware/AuthMiddleware.js";
 
 const router = express.Router();
@@ -19,17 +19,18 @@ const router = express.Router();
 router.post("/register", doRegister);
 router.post("/login", doLogin);
 
-// --- PROTECTED ROUTES (Token Required) ---
-// Everyone logged in can see products
+// --- PROTECTED ROUTES (Logged in Users) ---
+// The 'verifyToken' middleware ensures the user is logged in.
+// You can optionally add requireRole("user") if you want to be strict.
 router.get("/products", verifyToken, getProducts);
 router.get("/product/:id", verifyToken, getProductById);
 router.get("/usernames", verifyToken, showUsernames);
 
-// --- ADMIN ROUTES (Optional: Specific Role Required) ---
-// Example: Only allow 'admin' to add/edit/delete
-// If you don't have roles set up yet, just use `verifyToken`
-router.post("/add-product", verifyToken, addProduct);
-router.put("/edit-product/:id", verifyToken, editProduct);
-router.delete("/delete-product/:id", verifyToken, deleteProduct);
+// --- MANAGER/ADMIN ROUTES (Restricted) ---
+// These routes require the 'manajer' role specifically.
+// The order is important: 1. Verify Token -> 2. Check Role -> 3. Run Controller
+router.post("/add-product", verifyToken, requireRole("manajer"), addProduct);
+router.put("/edit-product/:id", verifyToken, requireRole("manajer"), editProduct);
+router.delete("/delete-product/:id", verifyToken, requireRole("manajer"), deleteProduct);
 
 export default router;

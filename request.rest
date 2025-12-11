@@ -12,12 +12,12 @@ POST http://localhost:5000/login
 Content-Type: application/json
 
 {
-  "username": "afharyo",
+  "username": "test1",
   "password": "111111"
 }
 
 ######
-GET http://localhost:5000/product/3
+GET http://localhost:5000/products
  
 ######
 DELETE http://localhost:5000/delete-product/1

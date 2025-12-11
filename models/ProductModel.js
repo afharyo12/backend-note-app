@@ -18,6 +18,12 @@ const Products = db.define(
     qty: {
       type: DataTypes.INTEGER
     },
+    lokasi_penyimpanan: {
+      type: DataTypes.STRING
+    },
+    harga: {
+      type: DataTypes.INTEGER
+    },
   },
   {
     timestamps: true, 

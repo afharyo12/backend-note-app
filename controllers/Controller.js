@@ -69,10 +69,9 @@ const doRegister = async (req, res) => {
 const doLogin = async (req, res) => {
     const { username, password } = req.body;
 
-    // Prepare data for Keycloak Token Endpoint
     const data = qs.stringify({
         client_id: keycloakConfig.clientId,
-        client_secret: keycloakConfig.clientSecret, // Only required if Access Type is 'Confidential'
+        client_secret: keycloakConfig.clientSecret,
         username: username,
         password: password,
         grant_type: "password"
@@ -84,13 +83,32 @@ const doLogin = async (req, res) => {
             data,
             { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
         );
-        logger.info(`User ${username} logged in successfully`); 
-        // Return the token to the user
+
+        // --- UPDATE MULAI DARI SINI ---
+        const accessToken = response.data.access_token;
+        
+        // 1. Decode token untuk melihat isinya
+        const decoded = jwt.decode(accessToken);
+        
+        // 2. Ambil daftar role dari 'realm_access'
+        const roles = decoded.realm_access?.roles || [];
+        
+        // 3. Tentukan role user untuk aplikasi kita
+        // Jika punya role 'manajer', kita set sebagai 'manajer', jika tidak 'user'
+        let appRole = 'user';
+        if (roles.includes('manajer')) {
+            appRole = 'manajer';
+        }
+
+        logger.info(`User ${username} logged in successfully as ${appRole}`); 
+
         res.json({
             message: 'Login successful',
-            token: response.data.access_token,
-            refreshToken: response.data.refresh_token
+            token: accessToken,
+            refreshToken: response.data.refresh_token,
+            role: appRole // <-- KITA KIRIM ROLE INI KE FRONTEND
         });
+        // --- UPDATE BERAKHIR DI SINI ---
 
     } catch (error) {
         logger.error(`Login error for ${username}: ${error.message}`);
@@ -100,7 +118,6 @@ const doLogin = async (req, res) => {
         res.status(500).json({ message: 'Error logging in' });
     }
 }
-
 const showUsernames = async (req, res) => {
     try {
         const usernames = await User.findAll();
@@ -134,12 +151,14 @@ const getProductById = async (req, res) => {
 
 const addProduct = async (req, res) => {
   try {
-    const { product_name, description, qty } = req.body;
+    const { product_name, description, qty, harga, lokasi_penyimpanan } = req.body;
 
     const newProduct = await Products.create({
       product_name,
       description,
       qty,
+      harga, 
+      lokasi_penyimpanan
     });
     logger.info(`Product created: ${product_name}`);
     res.status(201).json(newProduct);
